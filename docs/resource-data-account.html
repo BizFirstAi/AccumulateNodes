@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Data Account — AccumulateNodes</title>
+<meta name="description" content="The Data Account resource: writing tamper-evident, append-only entries and reading them back for audit-trail workflows." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5.2" rx="7.5" ry="2.6"/><path d="M4.5 5.2v6.4c0 1.44 3.36 2.6 7.5 2.6s7.5-1.16 7.5-2.6V5.2"/><path d="M4.5 11.6V18c0 1.44 3.36 2.6 7.5 2.6s7.5-1.16 7.5-2.6v-6.4"/></svg></span>
+      Resource &middot; 2.3 in the design proposal
+    </div>
+    <h1>Data Account</h1>
+    <p class="page-lede">
+      Write append-only entries to a dedicated data chain under an ADI, and read them back — the
+      clearest single fit for tamper-evident record-keeping in the whole proposal.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>6 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>5 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>1 Phase 2+ (DA05)</span>
+    </div>
+
+    <h2>What a Data Account is, and the guarantee it actually provides</h2>
+    <p>
+      A Data Account is a sub-account under an ADI (<code>acc://bob.acme/data</code>) dedicated to
+      storing arbitrary entries. Per <code>004.References/AboutAccumulate.md</code>, it inherits the same
+      chain-of-chains model as every other Accumulate account — but the property that matters most here
+      is that writes are <strong>append-only</strong>: there is no protocol-level "edit this entry"
+      operation. Once DA02/DA03 writes an entry, it's on the account's own chain permanently.
+    </p>
+    <p>
+      That's a structurally different guarantee than "we have good database access controls" — it
+      doesn't depend on trusting whoever holds <code>UPDATE</code> rights, including BizFirst's own
+      admins. The honest tradeoff, stated plainly in the source material: it's slower, it costs credits
+      (see <a href="resource-credits.html">Credits</a>), and it can't be undone if you write the wrong
+      thing. This is a tool for the subset of workflow steps where immutability is the actual point, not
+      a wholesale replacement for the audit/history tables BizFirst already has.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">DA01</td><td>Create Data Account</td><td class="op-maps"><code>TxBody.CreateDataAccount()</code></td>
+            <td>Set up a tamper-evident record store under an ADI (e.g. audit-trail target)</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">DA02</td><td>Write Data</td><td class="op-maps"><code>TxBody.WriteData()</code></td>
+            <td>Write an entry to the caller's own data account — the audit-trail use case</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">DA03</td><td>Write Data To</td><td class="op-maps"><code>TxBody.WriteDataTo()</code></td>
+            <td>Write an entry to a <em>different</em> target data account (cross-account writes)</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">DA04</td><td>Query Data Entry</td><td class="op-maps">V2 <code>query-data</code></td>
+            <td>Read back a specific data entry, e.g. to verify a workflow's own prior write</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">DA05</td><td>Query Data Set (range)</td><td class="op-maps">V2 <code>query-data-set</code></td>
+            <td>Bulk-read a range of entries — more of a reporting/explorer use case than a per-workflow step</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">DA06</td><td>Get Data Account Transaction History</td><td class="op-maps">V2 <code>query-tx-history</code> scoped to the data account's <code>acc://</code> URL</td>
+            <td>List transactions (writes) against this specific data account — explicitly requested by the owner alongside ID06/TA08 as a must-have, distinct from DA04/DA05 which read entry <em>contents</em> rather than write history</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>How it works — write, then verify your own write</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">DA02 write &rarr; DA04 read-back round trip</div>
+      <pre class="mermaid">
+sequenceDiagram
+  participant WF as Workflow (e.g. contract approval step)
+  participant DA as DataAccountService
+  participant SDK as Acme.Net.Sdk (SmartSigner)
+  participant CHAIN as Data Account chain (acc://.../data)
+
+  WF->>DA: DA02 Write Data("drafted", metadata)
+  DA->>SDK: TxBody.WriteData() -> SignSubmitAndWaitAsync
+  SDK->>CHAIN: append entry (immutable the moment it's written)
+  CHAIN-->>SDK: confirmed within 3s, or pending
+  SDK-->>DA: write result
+  DA-->>WF: continue workflow
+
+  WF->>DA: DA04 Query Data Entry (verify own prior write)
+  DA->>CHAIN: query-data
+  CHAIN-->>DA: entry contents, unchanged since DA02
+  DA-->>WF: verified before proceeding
+      </pre>
+    </div>
+
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">DA06 — reconstructing a full audit timeline</div>
+      <pre class="mermaid">
+flowchart LR
+  A["DA01 Create Data Account<br/>(one per contract / case / filing)"] --> B["DA02 write: drafted"]
+  B --> C["DA02 write: reviewed"]
+  C --> D["DA02 write: approved"]
+  D --> E["DA02 write: filed"]
+  E --> F["DA06 Get Transaction History"]
+  F --> G["Auditor sees the full timeline &mdash;<br/>no possibility an intermediate step was silently edited"]
+      </pre>
+    </div>
+
+    <h2>Business use case — tamper-evident compliance and approval trails</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.1</div>
+        <p>
+          A contract-approval workflow, a regulatory filing, or a chain-of-custody record for sensitive
+          documents all share the same shape: a sequence of steps that must be provably unaltered after
+          the fact. Today that's a database table with <code>created_at</code>/<code>updated_at</code>
+          columns and an implicit trust that no one touched it out of band. Instead: DA01 creates a
+          dedicated account per case, DA02 writes an entry at each meaningful step, DA06 pulls the full
+          write history for an auditor, and DA04 reads back a specific entry to verify a prior write.
+        </p>
+        <p>
+          Called out in the source document as <strong>the single clearest fit in the whole proposal</strong>:
+          a direct, mechanical answer to a mutable-audit-log failure mode that a normal database genuinely
+          can't solve without external tooling (a WORM store, or a blockchain-anchoring service) — which
+          is exactly what Accumulate already is.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; V2 vs. V3 targeting</div>
+        <p>
+          DA04/DA05/DA06's V2 method names (<code>query-data</code>, <code>query-data-set</code>,
+          <code>query-tx-history</code>) were verified against protocol source; V3 parity was not. Applies
+          to this resource the same way it applies to every other read-side operation in the node.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-data-account.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

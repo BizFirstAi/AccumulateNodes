@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Credits — AccumulateNodes</title>
+<meta name="description" content="The Credits resource: converting ACME into credits, checking credit balance, and querying the ACME/credit oracle rate." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="9" cy="9" r="5.5"/><circle cx="15" cy="15" r="5.5"/></svg></span>
+      Resource &middot; 2.6 in the design proposal
+    </div>
+    <h1>Credits</h1>
+    <p class="page-lede">
+      Convert ACME into the credits that pay for every write operation's transaction fee — small in
+      operation count, but a near-universal prerequisite for everything else in this node.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>0 Phase 2+</span>
+    </div>
+
+    <h2>Why credits exist at all</h2>
+    <p>
+      Accumulate doesn't charge transaction fees directly in ACME. Every write operation costs
+      <strong>credits</strong>, which are funded by converting ACME (see
+      <code>004.References/AboutAccumulate.md</code> &sect;2 — a Key Page carries "a credit balance used
+      to pay for the page's transactions"). That means every ADI creation, token send, data write, or
+      key-page change in this node ultimately depends on the signing Key Page having a sufficient credit
+      balance — which is why this small resource sits quietly underneath almost every other one.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">CR01</td><td>Add Credits</td><td class="op-maps"><code>TxBody.AddCredits()</code></td>
+            <td>Converts ACME &rarr; credits, which pay for <strong>every</strong> other write operation's transaction fee — a near-universal prerequisite step</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">CR02</td><td>Query Credit Balance</td><td class="op-maps">V2 <code>query</code> (against a key page)</td>
+            <td>Check whether a signer has enough credits before attempting a write, to fail fast with a clear error</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">CR03</td><td>Query ACME/Credit Oracle Rate</td><td class="op-maps"><code>AccumulateHelper</code> oracle helper</td>
+            <td>Needed to calculate how much ACME to convert for a target credit amount</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--open">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">CR03 flagged as not independently verified</div>
+        <p>
+          The design proposal marks CR03 MVP but with an explicit caveat: the exact underlying V2
+          endpoint/account URL for the oracle rate was not independently verified — confirm against SDK
+          source before implementing. <code>AboutAcmeNetSdk.md</code> references
+          <code>AccumulateHelper</code>'s oracle/credit-math helper, but this project could not
+          independently confirm which V2/V3 method or system account URL it queries under the hood.
+        </p>
+      </div>
+    </div>
+
+    <h2>How it works — the gate in front of every write</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">CR01/CR02/CR03 — fund, check, and calculate before writing</div>
+      <pre class="mermaid">
+flowchart TD
+  Q["CR03 Query ACME/Credit Oracle Rate"] --> CALC["Calculate ACME needed<br/>for target credit amount"]
+  CALC --> ADD["CR01 Add Credits<br/>(ACME -> credits on the signing Key Page)"]
+  ADD --> BAL["CR02 Query Credit Balance"]
+  BAL -->|sufficient| WRITE["Any write op proceeds:<br/>ID01/ID02, TA01-TA07, DA01-DA03,<br/>KM01-KM07, SS03, SS04"]
+  BAL -->|insufficient| FAIL["Fail fast with a clear error<br/>instead of a failed transaction mid-batch"]
+      </pre>
+    </div>
+
+    <h2>Business use case — credit management as workflow plumbing</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.7</div>
+        <p>
+          Not a use case anyone builds a workflow around for its own sake — but a workflow that does any
+          of the Identity, Token Account, Data Account, or Key Management write operations eventually
+          needs this as a supporting step, not a standalone pitch. "Credits run out mid-workflow" is a
+          realistic operational failure mode, and CR02 is this resource's answer to catching it before a
+          write fails partway through a batch, rather than after.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; CR03's exact oracle endpoint</div>
+        <p>
+          <code>AccumulateHelper</code>'s oracle/credit-math helper is referenced in
+          <code>AboutAcmeNetSdk.md</code>, but the underlying V2/V3 method or system account URL it
+          queries has not been independently confirmed. This is the one open question that is specific to
+          this resource rather than shared with others.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-credits.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

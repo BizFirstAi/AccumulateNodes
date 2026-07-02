@@ -57,6 +57,8 @@ place for open-ended conversation, design debate, and getting to know the rest o
 | `002.Requirements/` | Node design proposals — resources, operations, architecture (draft, evolving) |
 | `003.ApiSpec/` | The detailed, finalized API specification — reserved for the project owner to write once the design in `002.Requirements/` is settled |
 | `004.References/` | Background reading on Accumulate the protocol and `Acme.Net.Sdk` the library |
+| `009.SocialMedia/` | Community invitation copy — social posts, DM/email templates, LinkedIn Story drafts |
+| `docs/` | The project documentation website (home page + one page per resource) |
 
 ## Status
 

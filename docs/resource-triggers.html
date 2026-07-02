@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Triggers — AccumulateNodes</title>
+<meta name="description" content="The Triggers node: polling an account for new transactions to start a BizFirst workflow automatically." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v3.2M12 17.8V21M4.2 12H7.5M16.5 12h3.3"/><circle cx="12" cy="12" r="4.4"/></svg></span>
+      Trigger node &middot; 2.9 in the design proposal &middot; added 2026-07-02 per owner decision
+    </div>
+    <h1>Triggers</h1>
+    <p class="page-lede">
+      Start a BizFirst workflow automatically when a new transaction lands on a watched Accumulate
+      account — a different kind of node from the other eight resources on this site.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>1 operation</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>MVP &middot; owner-set 1s poll interval</span>
+    </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Not one of the "8 resources" — a different node shape entirely</div>
+        <p>
+          The design proposal's own Quick Facts table counts <strong>8 resources</strong> (Identity
+          through Utility) and lists Triggers separately. That's not an oversight: unlike every resource
+          above, which implements <code>INodeExecutor</code>, a trigger implements
+          <code>ITriggerNodeExecutor</code> and returns
+          <code>TriggerNodeResult&nbsp;{ HasNewItems, Items, ErrorMessage }</code>, following the
+          established pattern already used by <code>email-imap-trigger</code>. It's cron/interval-scheduled
+          polling, not a real push subscription. This site gives it a full page as the ninth building
+          block because a workflow author reasoning about "what can this node do" needs to see it
+          alongside the other eight — but architecturally, it's its own category.
+        </p>
+      </div>
+    </div>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">TRIG01</td><td>Watch Account for New Transactions</td>
+            <td class="op-maps">Poll QX01/QX02 (V2 <code>query-tx</code> / <code>query-tx-history</code>) on a 1-second interval</td>
+            <td>Start a workflow automatically when a new transaction lands on a watched account — e.g. "a payment arrived"</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>How it works — the poll loop</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">TRIG01 — one poll per second, per workflow instance using the trigger</div>
+      <pre class="mermaid">
+sequenceDiagram
+  loop every 1 second
+    participant TRIG as TRIG01 poll cycle
+    participant NET as Accumulate Network
+    participant WF as BizFirst Workflow
+
+    TRIG->>NET: QX01/QX02 query-tx / query-tx-history<br/>on watched account
+    NET-->>TRIG: latest transaction state
+    alt new transaction found
+      TRIG->>WF: TriggerNodeResult { HasNewItems: true, Items }
+      WF->>WF: workflow instance starts
+    else nothing new
+      TRIG->>TRIG: TriggerNodeResult { HasNewItems: false }
+    end
+  end
+      </pre>
+    </div>
+
+    <div class="callout callout--open">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Implementation note — not a decision to relitigate, but a real operational flag</div>
+        <p>
+          A 1-second interval is aggressive relative to Accumulate's synthetic-transaction settlement
+          delay (see <a href="resource-smart-signer.html">SmartSigner</a> and
+          <code>004.References/AboutAccumulate.md</code> &sect;1) — a newly-submitted transaction's
+          cross-chain effects may not be visible that quickly, so most 1-second polls will find nothing
+          new. It also means <strong>one poll call per second, per workflow instance</strong> using this
+          trigger, which is worth keeping in mind for API rate limits and node load at scale — a
+          dedup/backoff strategy, if needed, is a Phase 2 concern, not part of this design decision. The
+          interval itself is fixed by owner decision, not left as a per-workflow configurable default; if
+          per-workflow tuning is wanted later, that's a follow-up, not implied by this decision.
+        </p>
+      </div>
+    </div>
+
+    <h2>Business use case — reactive automation on incoming payments</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.5</div>
+        <p>
+          TRIG01 lets a workflow <em>start</em> when a transaction lands on a watched account, rather than
+          only ever being the thing that sends one — e.g. "start the fulfillment workflow when a
+          customer's payment arrives," or "notify finance when a disbursement account receives an
+          unexpected deposit." The scalability caveat above is called out directly in the business-ideas
+          document too, not just the design proposal — worth being direct about it rather than presenting
+          TRIG01 as a free lunch.
+        </p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-triggers.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

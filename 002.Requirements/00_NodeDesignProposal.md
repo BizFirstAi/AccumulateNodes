@@ -99,7 +99,7 @@ on workflow-author value, and a **priority marker**:
 `Signing` namespace, not a `TxBody`/account-structure call, so it now lives with the rest of the
 signing-related operations per the owner's decision to make Signing its own resource.
 
-### 2.5 SmartSigner (Signing) — 4 operations — **added 2026-07-02 per owner decision**
+### 2.5 SmartSigner (Signing) — 5 operations — **added 2026-07-02 per owner decision**
 
 Originally proposed as cross-cutting infrastructure only (see the removed "Not proposed as a
 resource" note below), the project owner decided this should be a first-class resource. Every
@@ -114,6 +114,71 @@ write operations above.
 | SS02 | Query Signer / Key Page Version | `KeyManager` (+ V2 `query` / `query-key-index`) | Look up a key page's current signer set, threshold, and **version** before signing — this is the exact "stale version gets rejected" problem `SmartSigner` exists to solve; also useful standalone for diagnostics (was KM08) | 🟢 MVP ⭐ |
 | SS03 | Sign, Submit &amp; Wait (generic) | `SmartSigner.SignSubmitAndWaitAsync(principal, body)` | Raw escape hatch: sign and submit an arbitrary `TxBody` and wait for delivery, for transaction types that don't have their own named operation in another resource yet | 🟡 Phase 2 — **needs owner input:** does this overlap with the "raw execute escape hatch" question in §5? (SS03 still requires a `TxBody`, so it's one level less raw than V2's `execute` methods) |
 | SS04 | Sign and Proceed (Multi-Sig Co-Sign) | `SmartSigner` co-signing a pending transaction | Adds this signer's Ed25519 signature to an already-pending multi-sig transaction. **Decided 2026-07-02 (owner):** this is the ONLY multi-sig operation the node needs — see the design note below on why | 🟢 MVP |
+| SS05 | Submit Pre-Signed Transaction (Bring Your Own Signature) | V2/V3 `execute` / `execute-direct` (submits an already-signed envelope as-is — no `TxBody` construction, no `SmartSigner` signing) | **Added 2026-07-02 (owner):** lets an external signer (their own wallet, their own key custody, outside this node entirely) sign a transaction independently and hand the node the finished, already-signed envelope. The node's job is purely to submit it and **recognize/parse the transaction's parameters** (type, principal, amounts, etc.) so the workflow can branch and continue based on what was actually submitted — not to hold or use any key at all | 🟢 MVP |
+
+**Non-custodial submission (SS05) — design note, 2026-07-02:** every other write operation in
+this document (ID01–ID02, TA01–TA07, DA01–DA03, KM01–KM07, CR01, SS03, SS04) is **custodial** —
+the node resolves a credential from BizFirst's vault and signs on the caller's behalf, per the
+platform's mandatory Credential Pattern (see §3). SS05 is the deliberate exception: the private key
+never touches this node or the credential vault at all. The signer does their own signing entirely
+outside BizFirst (their own wallet, their own process, whatever they use) and only ever hands the
+node a finished, already-signed transaction. This resolves the "should some operations support a
+non-custodial flow" question raised during design review, and it also answers/subsumes the "raw
+`execute` escape hatch" question from §5 below — `execute`/`execute-direct` (the same raw
+V2 submission surface referenced there) is exactly the mechanism SS05 needs, since those methods
+take a pre-built signed envelope and just relay it, doing no signing of their own.
+
+**Open technical question this creates:** "recognize the transaction parameters" requires
+**decoding** an arbitrary signed envelope back into a structured, typed result (which transaction
+type it was, and its fields) — the reverse direction of what `TxBody`'s factory methods do
+(building/encoding). `AboutAcmeNetSdk.md` only documents the SDK's encode-side `TxBody` factory; it
+does not confirm the SDK exposes a corresponding decoder. The GitHub README does list a `Codec/`
+namespace ("binary TLV encoding") which may cover this, but that wasn't independently verified
+against source. **This needs confirmation before SS05 can be implemented** — if the SDK can't
+decode an arbitrary envelope, this node would need its own TLV parser, which is meaningfully more
+implementation work than every other operation in this document (all of which only ever encode,
+via `TxBody`, never decode arbitrary input).
+
+**Signing pathways — design note (2026-07-02).** Scope note first: this section describes the
+*conceptual model only*. The exact HIL/`ApprovalNode` message schema, how an "optionally attach a
+signature" field is carried on the approval reply, and how a workflow decides whether a given
+transaction category needs HIL at all — these are implementation details **left to the custom
+developer building this node**, not specified here. What follows is the decision model this node
+needs to support, not a wire-format spec.
+
+There are three signing pathways a write operation can take:
+
+1. **Auto-sign, no human approval.** For transaction categories that are already gated by an
+   automated check upstream in the workflow (the owner's examples: an AML check, a KYC check) —
+   i.e. compliance already happened, just not via a human clicking "approve" — the workflow skips
+   `ApprovalNode`/HIL entirely and the node signs immediately using the **Agent's** (the
+   workflow/tenant's own shared, non-personal) credential. This is the same custodial signing every
+   other operation in this document already uses (§3's `SignerFactory` / `ICredentialResolver`
+   pattern) — the only thing that varies here is that no human was in the loop for this specific
+   transaction.
+2. **HIL approval, no signature attached.** An `ApprovalNode` step gates the transaction; the
+   approving user clicks "approve" but does not supply their own signature in the reply. The node
+   must still sign on someone's behalf — and here there are two credential options, both
+   custodial, chosen per user/workflow configuration rather than hardcoded:
+   - **The approving user's own key**, if that specific user has their own personal Ed25519
+     credential registered in BizFirst's credential vault (i.e. the system signs *as that specific
+     human*, using a key that belongs to them individually).
+   - **The Agent's credentials**, used optionally instead — the human approves the *action*, but
+     the actual cryptographic signature comes from the workflow/tenant's shared signing key, not a
+     key personally owned by the approver.
+3. **HIL approval, signature already attached.** The approving user's reply already carries a
+   signature they produced themselves, outside this node entirely (their own wallet, their own key
+   custody — see `SS05` above). In this case **no further signing is needed at all** — the system
+   recognizes a signature is already present and the transaction flows straight into `SS05`
+   (submit-as-is + recognize parameters), never touching `SmartSigner`, `SignerFactory`, or the
+   credential vault for this transaction.
+
+This means "does the node sign, and with what key" is a per-transaction runtime decision, not a
+fixed property of an operation — the same `TA02 Send Tokens`, for example, could go through any of
+the three pathways above depending on whether HIL is configured for it and whether the approver
+brought their own signature. `SS04` (multi-sig co-sign) composes with this too: each of the N
+required approvers independently goes through one of pathway 2 or 3 for *their own* signature
+contribution — a workflow doesn't have to use the same pathway for every co-signer.
 
 **Multi-sig design decision (2026-07-02):** the node does **not** build its own pending-transaction
 tracking, threshold counting, or a separate long-running "wait for N signers" operation. The

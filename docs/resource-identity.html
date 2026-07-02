@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Identity (ADI) — AccumulateNodes</title>
+<meta name="description" content="The Identity resource: creating and querying Accumulate Digital Identifiers (ADIs), sub-identity inheritance, and hierarchy provisioning." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8.2" r="3.2"/><path d="M12 3.2v1.6M12 19.2v1.6M12 11.4a7 7 0 0 1 7 7"/><path d="M12 11.4a7 7 0 0 0-7 7"/></svg></span>
+      Resource &middot; 2.1 in the design proposal
+    </div>
+    <h1>Identity (ADI)</h1>
+    <p class="page-lede">
+      Provision and inspect Accumulate Digital Identifiers — the human-readable, self-owned identity
+      every other resource in this node nests underneath.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>6 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>5 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>1 Phase 2+ (ID05)</span>
+    </div>
+
+    <h2>What an ADI is, and why it's the resource everything else nests under</h2>
+    <p>
+      Most L1 chains treat a cryptographic keypair as the address. Accumulate inverts that: the base
+      unit is an <strong>Accumulate Digital Identifier (ADI)</strong> — a human-readable, URL-shaped
+      identity such as <code>acc://redwagon.acme</code>. Per the protocol docs, each ADI "functions as
+      an independent chain" with its own state and its own set of typed sub-accounts (token accounts,
+      data accounts, key books) nested under its URL — e.g. <code>acc://redwagon.acme/tokens</code>.
+      This is the "chain-of-chains" design covered in
+      <code>004.References/AboutAccumulate.md</code> &sect;1: rather than one shared global ledger,
+      every ADI is effectively its own mini-blockchain, periodically anchored into the wider network.
+    </p>
+    <p>
+      An ADI must be created on-chain, funded by ACME-converted credits, and is secured by a
+      <strong>Key Book</strong> from the moment it exists (see the
+      <a href="resource-key-management.html">Key Management</a> resource for what that structure looks
+      like). Sub-identities can nest further — <code>acc://company.acme/accounting/payroll</code> — which
+      is exactly the shape ID02 and ID05 below are for.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">ID01</td><td>Create Identity</td><td class="op-maps"><code>TxBody.CreateIdentity()</code></td>
+            <td>Provision a new ADI as part of an onboarding/setup workflow</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">ID02</td><td>Create Identity (Inherited authority)</td><td class="op-maps"><code>TxBody.CreateIdentityInherited()</code></td>
+            <td>Create a sub-identity that inherits its parent's key book — common for an org sub-unit</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">ID03</td><td>Query Identity / Account Info</td><td class="op-maps">V2 <code>query</code></td>
+            <td>Read an ADI's current state before branching workflow logic</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">ID04</td><td>Query ADI Directory (list sub-accounts)</td><td class="op-maps">V2 <code>query-directory</code></td>
+            <td>Enumerate an ADI's token/data/key-book sub-accounts, e.g. to discover what already exists</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">ID05</td><td>Provision ADI Hierarchy</td><td class="op-maps"><code>Acme.Net.Sdk.Provisioning.HierarchyProvisioner</code></td>
+            <td>One call to stand up a multi-level ADI tree (org identity + department sub-identities, each with its own key config) instead of manually looping ID01/ID02 + KM01/KM02. Idempotent — safe to retry after a partial failure without creating duplicates</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">ID06</td><td>Get Identity Transaction History</td><td class="op-maps">V2 <code>query-tx-history</code> scoped to the ADI's <code>acc://</code> URL</td>
+            <td>List transactions against this specific identity — resource-scoped history, parity with how the Ethereum node scopes history under Account rather than only as a generic Transactions resource op</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Settled 2026-07-02 — ID05 is a dedicated operation</div>
+        <p>
+          The project owner decided <code>HierarchyProvisioner</code> gets its own operation ID rather
+          than being modeled purely as a workflow author composing ID01/ID02 + KM01/KM02 themselves. It
+          stays Phase 2, not because the decision is soft, but because it needs a tree-shaped input
+          schema (parent/children plus per-level key config) — genuinely more design work than the flat,
+          single-level settings the MVP operations above use.
+        </p>
+      </div>
+    </div>
+
+    <h2>How it works — provisioning a multi-level identity tree</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">ID05 — HierarchyProvisioner, one idempotent call</div>
+      <pre class="mermaid">
+flowchart TD
+  W["Workflow: onboard a new org unit"] --> N["AccumulateNodeExecutor<br/>ID05 Provision ADI Hierarchy"]
+  N --> HP["HierarchyProvisioner<br/>(Acme.Net.Sdk.Provisioning)"]
+  HP --> P["acc://company.acme<br/>(parent ADI, ID01)"]
+  P --> C1["acc://company.acme/accounting<br/>(ID02, inherits parent key book)"]
+  P --> C2["acc://company.acme/payroll<br/>(ID02, inherits parent key book)"]
+  C1 --> K1["Key Page config<br/>(KM01/KM02 per level)"]
+  C2 --> K2["Key Page config<br/>(KM01/KM02 per level)"]
+  HP -. "retry after partial failure is safe — no duplicate sub-identities" .-> HP
+      </pre>
+    </div>
+
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">ADI URL / account model — what nests under an identity</div>
+      <pre class="mermaid">
+graph TD
+  ADI["acc://redwagon.acme<br/>(the ADI itself)"]
+  ADI --> KB["Key Book<br/>secures the ADI from creation"]
+  ADI --> TOK["acc://redwagon.acme/tokens<br/>Token Account"]
+  ADI --> DAT["acc://redwagon.acme/data<br/>Data Account"]
+  ADI --> SUB["acc://redwagon.acme/accounting<br/>Sub-identity (ID02)"]
+  SUB --> SUBKB["inherits parent Key Book<br/>(no separate authority unless overridden)"]
+      </pre>
+    </div>
+
+    <h2>Business use case — organizational identity provisioning</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.4</div>
+        <p>
+          Onboarding workflows — a new business unit, vendor, or customer — often end with "someone
+          manually sets up their account/credentials in system X." An ADI can be one of those provisioned
+          artifacts: ID01 creates the new identity, ID02 adds inheriting sub-identities for department
+          structure, KM01/KM02 set up its key authority, ID05 does the whole tree in one idempotent call,
+          and ID03/ID04 confirm the provisioning actually succeeded before the workflow proceeds.
+        </p>
+        <p>
+          Flagged honestly in the source document: this is plausible and maps cleanly to real operations,
+          but "a vendor/customer wants a self-sovereign on-chain identity as part of BizFirst onboarding"
+          is a claim about customer demand the business-ideas document explicitly says it cannot verify —
+          not asserted as proven.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; read-only credential mode</div>
+        <p>
+          Should the node support a no-signing-key, query-only credential mode? If resolved, ID03/ID04/ID06
+          (pure reads) could run without provisioning a signing key at all — directly relevant to Identity
+          since its two read operations don't inherently need one. See the
+          <a href="resource-query-explorer.html">Query / Explorer</a> page for the fuller discussion.
+        </p>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; V2 vs. V3 targeting</div>
+        <p>
+          ID03/ID04/ID06's V2 method names (<code>query</code>, <code>query-directory</code>,
+          <code>query-tx-history</code>) were verified directly against protocol source; V3's exact
+          method-name parity was not independently confirmed. Needs confirmation at implementation time.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-identity.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

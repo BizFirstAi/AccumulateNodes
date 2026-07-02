@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Query / Explorer — AccumulateNodes</title>
+<meta name="description" content="The Query/Explorer resource: transactions, transaction history, pending status, directories, synthetic transactions, and chain-explorer style diagnostics." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3 21 21"/></svg></span>
+      Resource &middot; 2.7 in the design proposal
+    </div>
+    <h1>Query / Explorer</h1>
+    <p class="page-lede">
+      Transactions &amp; Chain State — the read-side complement to every write operation in every other
+      resource, and the one resource a workflow could use with no signing key at all.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>8 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>4 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>4 Phase 2+</span>
+    </div>
+
+    <h2>What this resource covers, and why it's the read-side baseline</h2>
+    <p>
+      Every resource-scoped history operation elsewhere in this node — ID06, TA08, DA06, KM09 — is the
+      same underlying <code>query-tx-history</code> call as QX02, just typed and scoped to that resource's
+      account. Query/Explorer is where the generic, resource-agnostic versions live: look up any
+      transaction by ID (QX01), list any account's history (QX02), check settlement status (QX03), list
+      what's under any <code>acc://</code> URL (QX05), and — Phase 2 — inspect synthetic transactions,
+      browse minor/major blocks, or check node status.
+    </p>
+    <p>
+      Per the design proposal's decision log, the Query/Explorer operations use the <strong>V2</strong>
+      method surface as the baseline, because V2 method names (<code>query</code>, <code>query-tx</code>,
+      <code>query-directory</code>, etc.) were independently verified against the protocol's own Go
+      source (<code>pkg/client/api/v2/api_v2_sdk_gen.go</code> in <code>AccumulateNetwork/accumulate</code>),
+      while V3's exact method-name surface was not. That's a starting point, not a final call — see the
+      open question below.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">QX01</td><td>Query Transaction</td><td class="op-maps">V2 <code>query-tx</code></td>
+            <td>Look up a transaction by ID — verification/monitoring, the read-side complement to every write op</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX02</td><td>Query Transaction History</td><td class="op-maps">V2 <code>query-tx-history</code></td>
+            <td>List an account's past transactions for reporting/reconciliation workflows</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX03</td><td>Query Pending Transaction</td><td class="op-maps">V2 <code>query-tx</code> (pending state)</td>
+            <td>Check whether a submitted transaction (or a multi-sig pending transaction) has settled</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX05</td><td>Query Directory (generic URL listing)</td><td class="op-maps">V2 <code>query-directory</code></td>
+            <td>Generic "what's under this <code>acc://</code> URL" — reusable beyond ID04's ADI-specific case</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX04</td><td>Query Synthetic Transaction</td><td class="op-maps">V2 <code>query-synth</code></td>
+            <td>Inspect the protocol-generated synthetic transaction behind a cross-ADI effect — debugging/advanced use</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX06</td><td>Query Minor Blocks</td><td class="op-maps">V2 <code>query-minor-blocks</code></td>
+            <td>Chain-explorer-style browsing, not a typical workflow step</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX07</td><td>Query Major Blocks</td><td class="op-maps">V2 <code>query-major-blocks</code></td>
+            <td>Same tier as QX06</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">QX08</td><td>Node Status / Version / Describe</td><td class="op-maps">V2 <code>status</code> / <code>version</code> / <code>describe</code></td>
+            <td>Operational diagnostics (network config, fee schedule) — arguably infra tooling, not workflow logic</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>How it works — a reconciliation/monitoring workflow</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">Periodic watch: compare expected vs. actual chain state</div>
+      <pre class="mermaid">
+flowchart TD
+  CRON["Scheduled workflow run"] --> Q1["QX01/QX02<br/>query specific transactions + history<br/>for a set of watched accounts"]
+  Q1 --> Q2["TA04 / CR02<br/>check token &amp; credit balances<br/>against expected thresholds"]
+  Q2 --> Q3["QX05 Query Directory<br/>enumerate what exists under an acc:// URL"]
+  Q3 --> CMP{"Matches expectations?"}
+  CMP -->|no| ALERT["Raise alert / kick off follow-up workflow<br/>(email, ticket, Slack)"]
+  CMP -->|yes| DONE["No action needed"]
+      </pre>
+    </div>
+
+    <h2>Business use case — reconciliation and monitoring, with no signing key</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.6</div>
+        <p>
+          Not every use case needs to <em>write</em> to the chain — a workflow can exist purely to watch
+          it. A finance-ops workflow could periodically query transactions and balances, enumerate what
+          exists under an <code>acc://</code> URL to detect drift (e.g. an unexpected new sub-account),
+          and raise an alert when something doesn't match expectations.
+        </p>
+        <p>
+          Called out as <strong>the lowest-friction use case in the whole list</strong> because it needs
+          no signing key at all — see the read-only credential mode open question below. It's a genuine
+          fit for any customer already running Accumulate accounts for other reasons (Token Account or
+          Identity use cases), even if they have no interest in the write-side operations.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; Read-only credential mode</div>
+        <p>
+          Should the node support a no-signing-key, query-only credential mode (parity with the Ethereum
+          node's read-only wallet mode), so a workflow can be built purely around Query/Explorer +
+          balance-check operations without provisioning a signing key at all? This is the open question
+          that matters most for this specific resource, since every operation on this page is already a
+          read.
+        </p>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; V2 vs. V3 targeting</div>
+        <p>
+          This is the resource where the V2/V3 question originates: should the node target V2 (verified,
+          but per the SDK's own docs positioned as legacy), V3 (newer, but not independently confirmed
+          here), or let the SDK's unified client abstraction decide per call? Needs direct confirmation
+          against <code>docs.accumulatenetwork.io</code> and/or SDK source at implementation time.
+        </p>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; Diagnostics scope (QX08)</div>
+        <p>
+          Does node status/version/network-describe belong in this ExecutionNode at all, or is that purely
+          operational tooling outside a workflow-automation node's purpose?
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-query-explorer.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

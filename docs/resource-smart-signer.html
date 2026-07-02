@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmartSigner — AccumulateNodes</title>
+<meta name="description" content="The SmartSigner resource: Ed25519 key generation, signer-version lookups, the sign-submit-wait flow, and multi-sig co-signing via ApprovalNode." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5c3-.4 3-3.4 0-3.6M4 19.5 15.5 8a1.8 1.8 0 0 0 0-2.6l-.9-.9a1.8 1.8 0 0 0-2.6 0L4 12.9v6.6Z"/><path d="M11.2 5.7 16.3 10.8"/></svg></span>
+      Resource &middot; 2.5 in the design proposal &middot; added 2026-07-02 per owner decision
+    </div>
+    <h1>SmartSigner (Signing)</h1>
+    <p class="page-lede">
+      Ed25519 key generation, signer/key-page version lookups, and the sign&rarr;submit&rarr;wait flow
+      every write operation in every other resource internally goes through — exposed here as its own
+      first-class, workflow-visible resource.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>4 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>1 Phase 2+ (SS03)</span>
+    </div>
+
+    <h2>Why signing became its own resource</h2>
+    <p>
+      Originally proposed as cross-cutting infrastructure only — internal plumbing every write operation
+      calls into, never exposed to a workflow author directly — the project owner overruled that on
+      2026-07-02 and asked for Signing to be a first-class resource. <code>SignerFactory</code>
+      (Services-layer plumbing) still exists and is still used internally by every other resource's write
+      operations to resolve a credential into a <code>SmartSigner</code> instance. What changed is that
+      key generation and signer/version querying (SS01/SS02) are now directly workflow-visible operations
+      in their own right, not merely internal mechanics.
+    </p>
+    <p>
+      Per <code>004.References/AboutAccumulate.md</code> &sect;2, Accumulate signs with <strong>Ed25519</strong>,
+      not the secp256k1/ECDSA scheme most EVM chains use — an Ethereum key or wallet is not compatible
+      here. And because a Key Page carries a version number that must match what a signature references
+      to validate, <code>SmartSigner</code>'s whole reason to exist is automatically tracking and
+      incrementing that version — solving exactly the "stale version gets rejected" problem SS02 also
+      exists to diagnose standalone.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">SS01</td><td>Generate Signing Keypair</td><td class="op-maps"><code>AccKeyPairGenerator.GenerateSignatureKeyPair(SignatureType.ED25519)</code></td>
+            <td>Provision a brand-new Ed25519 keypair as part of an onboarding workflow, e.g. before creating a Lite Identity or Key Page</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">SS02</td><td>Query Signer / Key Page Version</td><td class="op-maps"><code>KeyManager</code> (+ V2 <code>query</code> / <code>query-key-index</code>)</td>
+            <td>Look up a key page's current signer set, threshold, and <strong>version</strong> before signing — the exact problem <code>SmartSigner</code> exists to solve; also useful standalone for diagnostics (was KM08)</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">SS03</td><td>Sign, Submit &amp; Wait (generic)</td><td class="op-maps"><code>SmartSigner.SignSubmitAndWaitAsync(principal, body)</code></td>
+            <td>Raw escape hatch: sign and submit an arbitrary <code>TxBody</code> and wait for delivery, for transaction types without their own named operation yet</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">SS04</td><td>Sign and Proceed (Multi-Sig Co-Sign)</td><td class="op-maps"><code>SmartSigner</code> co-signing a pending transaction</td>
+            <td>Adds this signer's Ed25519 signature to an already-pending multi-sig transaction. <strong>Decided 2026-07-02:</strong> this is the ONLY multi-sig operation the node needs</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>How it works — sign, submit, wait 3 seconds</h2>
+    <p>
+      The SDK's headline feature bundles "build &rarr; sign &rarr; submit &rarr; poll for delivery" into
+      one async call, because Accumulate transactions aren't finalized in a single step — a synthetic
+      transaction settles the cross-ADI effect afterward. The project owner's 2026-07-02 decision fixes
+      the sync/async boundary at <strong>3 seconds</strong>: if the transaction confirms within that
+      window, the operation returns as a normal synchronous success ("in case it signs we can continue as
+      is," in the owner's words); if not, it returns pending rather than blocking further.
+    </p>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">SS03 / the internal flow every write op shares</div>
+      <pre class="mermaid">
+sequenceDiagram
+  participant WF as Workflow / any write operation
+  participant SF as SignerFactory
+  participant SS as SmartSigner
+  participant NET as Accumulate Network
+
+  WF->>SF: resolve credentialId via ICredentialResolver
+  SF->>SS: new SmartSigner(client.V3, keypair, signerUrl)
+  WF->>SS: SignSubmitAndWaitAsync(principal, TxBody)
+  SS->>SS: build envelope, sign (Ed25519)
+  SS->>NET: submit transaction
+  NET-->>SS: poll for delivery (up to 3s window)
+  alt confirmed within 3s
+    SS-->>WF: synchronous success &mdash; treat as done
+  else not yet confirmed
+    SS-->>WF: pending status &mdash; treat as pending, check later
+    WF->>WF: follow up via QX01 / QX03 / TRIG01
+  end
+      </pre>
+    </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Settled 2026-07-02 — 3-second transaction confirmation wait policy</div>
+        <p>
+          Every write operation across the whole node that submits a transaction (ID01&ndash;ID02,
+          TA01&ndash;TA07, DA01&ndash;DA03, KM01&ndash;KM07, CR01, SS03, SS04 — anything going through
+          <code>SmartSigner</code>) follows this same 3-second rule. Needs confirmation at implementation
+          time against how <code>SmartSigner.SignSubmitAndWaitAsync()</code>'s own internal polling
+          behaves — the SDK's "wait for delivery" may need an explicit timeout/cancellation parameter to
+          actually enforce a 3-second cap rather than blocking until the SDK's own poll loop finishes on
+          its own schedule.
+        </p>
+      </div>
+    </div>
+
+    <h2>How it works — multi-sig, consolidated through ApprovalNode</h2>
+    <p>
+      The node does <strong>not</strong> build its own pending-transaction tracking, threshold counting,
+      or a separate long-running "wait for N signers" operation. The platform already has
+      <code>ApprovalNode</code> (<code>BizFirst.Ai.ExecutionNodes.Core</code>) with an
+      <code>eApprovalStrategy</code> enum that includes <code>NofM</code> alongside <code>All</code>/<code>AnyOne</code>
+      — exactly the consolidation mechanic Accumulate's async multi-sig needs.
+    </p>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">SS04 + ApprovalNode NofM — the intended multi-sig pattern</div>
+      <pre class="mermaid">
+flowchart TD
+  T["Pending multi-sig transaction<br/>submitted against a 2-of-3 Key Page"] --> AN["ApprovalNode step<br/>strategy = NofM, one actor per required signer"]
+  AN --> A1["Approver A action"]
+  AN --> A2["Approver B action"]
+  AN --> A3["Approver C action (not needed &mdash; threshold already met)"]
+  A1 --> SS4a["SS04 Sign and Proceed<br/>adds Approver A's Ed25519 signature"]
+  A2 --> SS4b["SS04 Sign and Proceed<br/>adds Approver B's Ed25519 signature"]
+  SS4a --> R["ApprovalNode suspend/resume framework<br/>(not this node) waits for threshold"]
+  SS4b --> R
+  R --> DONE["2-of-3 threshold met &mdash; workflow resumes"]
+  QX3["QX03 Query Pending Transaction<br/>(optional status check, not required for core flow)"] -. available on demand .-> T
+      </pre>
+    </div>
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Settled 2026-07-02 — a general principle, not just a multi-sig special case</div>
+        <p>
+          Stated in the design proposal as a general rule for the rest of the design too: any future
+          operation that needs "wait for multiple humans/systems to act before proceeding" semantics
+          should default to composing with <code>ApprovalNode</code> rather than this node growing its
+          own suspend/consolidate logic. <code>HierarchyProvisioner</code> (ID05, see
+          <a href="resource-identity.html">Identity</a>) is a different case — SDK-side idempotent
+          provisioning, not human consolidation — so it stays a direct SDK wrap.
+        </p>
+      </div>
+    </div>
+
+    <h2>Business use case — cryptographic, non-repudiable approval</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.2</div>
+        <p>
+          Each approver's action invoking SS04 to add their signature to the pending transaction is what
+          turns "recorded who clicked approve" into "produced a cryptographic signature against a defined
+          authority structure." That distinction matters for exactly the customer who might need to
+          defend an approval decision to a party that doesn't implicitly trust BizFirst's own database —
+          a regulator, an auditor, a counterparty in a dispute.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; Raw "execute" escape hatch</div>
+        <p>
+          The V2 surface includes generic <code>execute</code> / <code>execute-direct</code> /
+          <code>execute-local</code> methods alongside named per-type methods. Should the node expose a
+          generic "raw transaction" operation as an escape hatch for transaction types not covered by a
+          named <code>TxBody</code> builder — and does that overlap with SS03, which still requires a
+          <code>TxBody</code> and so is one level less raw than V2's <code>execute</code> methods?
+        </p>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Unverified &middot; is "SmartSigner" a protocol concept or an SDK abstraction?</div>
+        <p>
+          Per <code>004.References/AboutAccumulate.md</code>, this "smart" version-tracking behavior is
+          described only as an <code>Acme.Net.Sdk</code> feature/abstraction, not confirmed as an official
+          Accumulate protocol term — worth confirming directly with <code>jason_gregoire</code> or the SDK
+          source if the distinction matters for the ExecutionNode's design.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-smart-signer.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

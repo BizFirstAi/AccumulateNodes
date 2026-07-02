@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Key Management — AccumulateNodes</title>
+<meta name="description" content="The Key Management resource: Key Books, Key Pages, m-of-n thresholds, signer lifecycle, and account authority." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12.2 19 4.2M16 6l2 2M19.2 3.8l1.6 1.6"/></svg></span>
+      Resource &middot; 2.4 in the design proposal
+    </div>
+    <h1>Key Management</h1>
+    <p class="page-lede">
+      Establish and maintain the authority structure — Key Books, Key Pages, and m-of-n thresholds —
+      that governs who can act on an ADI or any of its sub-accounts.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>8 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>5 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>3 Phase 2+ (KM05&ndash;KM07)</span>
+    </div>
+
+    <h2>Key Books, Key Pages, and thresholds — before the operations list</h2>
+    <p>
+      Accumulate separates <strong>authority to act</strong> from <strong>the account being acted on</strong>.
+      Per <code>004.References/AboutAccumulate.md</code> &sect;2:
+    </p>
+    <ul>
+      <li>A <strong>Key Book</strong> is an ordered set of <strong>Key Pages</strong>, prioritized so a
+        higher-priority page can modify itself or any lower-priority page.</li>
+      <li>A <strong>Key Page</strong> lists the public key hashes (and/or delegate URLs) allowed to sign,
+        plus an <strong>m-of-n signature threshold</strong> (e.g. 2-of-3) and a credit balance used to pay
+        for the page's own transactions.</li>
+      <li>A transaction is accepted once <em>all</em> of the target account's authorities accept it, and
+        an authority accepts once <em>any one</em> of its signers (key pages) reaches its own threshold.
+        Cross-ADI authority approval is relayed via synthetic "forward" transactions.</li>
+    </ul>
+    <p>
+      This authority model is what makes Accumulate naturally suited to organizational key hierarchies —
+      "a payment over $10,000 needs 2 of 3 finance-team signatures" — without a custom smart contract.
+      Every operation below is either building this structure (KM01/KM02), maintaining it over time
+      (KM03/KM04/KM05/KM06), locking it down (KM07), or reading its history (KM09). Actually signing
+      against it lives one resource over, in <a href="resource-smart-signer.html">SmartSigner</a>.
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">KM01</td><td>Create Key Book</td><td class="op-maps"><code>TxBody.CreateKeyBook()</code></td>
+            <td>Establish the authority structure for a new ADI or sub-account</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM02</td><td>Create Key Page</td><td class="op-maps"><code>TxBody.CreateKeyPage()</code></td>
+            <td>Add a signer set + threshold under a key book</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM03</td><td>Add/Remove Key Operation</td><td class="op-maps"><code>TxBody.AddKeyOperation()</code></td>
+            <td>Onboard/offboard a signer on an existing key page — common lifecycle operation</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM04</td><td>Set Signature Threshold</td><td class="op-maps"><code>TxBody.SetThresholdOperation()</code></td>
+            <td>Change the m-of-n requirement on a key page (e.g. tighten approval policy)</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM05</td><td>Update Key Page (generic)</td><td class="op-maps"><code>TxBody.UpdateKeyPage()</code></td>
+            <td>Generic multi-op container for key-page changes not covered by KM03/KM04 individually</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM06</td><td>Update Account Auth</td><td class="op-maps"><code>TxBody.UpdateAccountAuth()</code></td>
+            <td>Change which authorities govern an account (advanced authority management)</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM07</td><td>Lock Account</td><td class="op-maps"><code>TxBody.LockAccount()</code></td>
+            <td>Freeze an account's ability to transact — an incident-response/compliance operation</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">KM09</td><td>Get Key Page Transaction History</td><td class="op-maps">V2 <code>query-tx-history</code> scoped to the key page's <code>acc://</code> URL</td>
+            <td>List transactions against this key page — key rotations, threshold changes, multi-sig co-sign activity (SS04)</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Where did KM08 go?</div>
+        <p>
+          "Query Key Page" was originally proposed as KM08. It's been moved to
+          <a href="resource-smart-signer.html">SmartSigner</a> as <strong>SS02</strong> — it wraps
+          <code>KeyManager</code> from the SDK's <code>Signing</code> namespace, not a
+          <code>TxBody</code>/account-structure call, so it now lives with the rest of the
+          signing-related operations per the owner's decision to make Signing its own resource. There is
+          intentionally no KM08 in this resource's operation table.
+        </p>
+      </div>
+    </div>
+
+    <h2>How it works — the authority structure a Key Book expresses</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">Key Book &rarr; Key Pages &rarr; m-of-n threshold</div>
+      <pre class="mermaid">
+graph TD
+  KB["Key Book<br/>acc://company.acme/book"]
+  KB --> P1["Key Page 1 (priority 1)<br/>can modify itself or lower pages"]
+  KB --> P2["Key Page 2 (priority 2)<br/>&quot;Finance &mdash; payments over $10k&quot;"]
+  P2 --> S1["Signer A (public key hash)"]
+  P2 --> S2["Signer B (public key hash)"]
+  P2 --> S3["Signer C (public key hash)"]
+  P2 -. "2-of-3 threshold (KM04)" .-> ACC["Transaction accepted once<br/>threshold is met"]
+      </pre>
+    </div>
+
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">Signer lifecycle — onboarding, offboarding, tightening policy</div>
+      <pre class="mermaid">
+sequenceDiagram
+  participant Admin as Workflow (team change)
+  participant KM as KeyManagementService
+  participant Page as Key Page
+
+  Admin->>KM: KM03 Add Key Operation (new hire's public key)
+  KM->>Page: signer set += new hire
+  Admin->>KM: KM03 Add/Remove Key Operation (departure)
+  KM->>Page: signer set -= departing signer
+  Admin->>KM: KM04 Set Signature Threshold (2-of-3 -> 3-of-4)
+  KM->>Page: threshold updated
+  Admin->>KM: KM09 Get Key Page Transaction History
+  KM-->>Admin: full audit of every rotation and threshold change
+      </pre>
+    </div>
+
+    <h2>Business use case — multi-party approval with non-repudiable accountability</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.2</div>
+        <p>
+          Extend BizFirst's existing <code>ApprovalNode</code> (<code>NofM</code> strategy) so each
+          approver's action produces a cryptographic signature against a real authority structure, not
+          just a database row. KM01/KM02 set up a Key Book/Key Page for the approving group once (e.g.
+          "Finance — payments over $10k requires 2 of 3"); KM03/KM04 onboard/offboard approvers and adjust
+          the threshold as the team changes, without redesigning the workflow. The actual co-signing is
+          <code>SS04</code> on the <a href="resource-smart-signer.html">SmartSigner</a> page — see that
+          page for the full consolidation flow with <code>ApprovalNode</code>.
+        </p>
+        <p>
+          The business value isn't faster approvals — it's that the resulting record is a set of
+          cryptographic signatures against a defined authority structure, not database rows an
+          administrator could technically alter.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; KM05 vs. KM03/KM04 overlap</div>
+        <p>
+          Is <code>UpdateKeyPage()</code> (KM05, generic multi-op) meant to fully subsume the more
+          specific <code>AddKeyOperation()</code>/<code>SetThresholdOperation()</code> calls — making
+          KM03/KM04 the "easy mode" and KM05 the "advanced mode" — or are these functionally distinct
+          enough to design independently? This directly affects whether KM05 stays Phase 2 or folds into
+          MVP.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-key-management.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

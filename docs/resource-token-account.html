@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Token Account — AccumulateNodes</title>
+<meta name="description" content="The Token Account resource: creating token accounts, single and batch sends, balance checks, custom token issuance." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M3 10h18"/><circle cx="17" cy="14.3" r="1.4"/></svg></span>
+      Resource &middot; 2.2 in the design proposal
+    </div>
+    <h1>Token Account</h1>
+    <p class="page-lede">
+      Hold and move ACME or custom Accumulate-native tokens under an ADI — single payments, batch
+      disbursement, balance checks, and (Phase 2) custom token issuance.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>8 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>5 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>3 Phase 2+ (issuance: TA05&ndash;TA07)</span>
+    </div>
+
+    <h2>What a Token Account is</h2>
+    <p>
+      A Token Account is a typed sub-account nested under an ADI's URL — e.g.
+      <code>acc://bob.acme/tokens</code> — holding a balance of ACME or a custom token. This is a direct
+      instance of Accumulate's account model from <code>004.References/AboutAccumulate.md</code> &sect;2:
+      "accounts" here are purpose-specific sub-chains under an identity, not a single balance tied
+      directly to a keypair the way an EVM chain's address works. Every send from a Token Account is a
+      transaction that goes through the identity's Key Book authority and, per the protocol's
+      synthetic-transaction mechanism, the receiving account's balance is credited by a
+      protocol-generated follow-on transaction rather than updated in the same atomic step — which is why
+      the SDK's <code>SmartSigner</code> polls for delivery rather than treating "submitted" as "settled."
+    </p>
+
+    <h2>Operations</h2>
+    <div class="table-wrap">
+      <table class="op-table">
+        <thead><tr><th>Code</th><th>Operation</th><th>Maps to</th><th>Why a workflow author wants it</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="op-code">TA01</td><td>Create Token Account</td><td class="op-maps"><code>TxBody.CreateTokenAccount()</code></td>
+            <td>Set up a place to hold ACME or a custom token under an ADI</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA02</td><td>Send Tokens (single recipient)</td><td class="op-maps"><code>TxBody.SendTokensSingle()</code></td>
+            <td>Core payment operation — pay one counterparty</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA03</td><td>Send Tokens (batch)</td><td class="op-maps"><code>TxBody.SendTokens()</code></td>
+            <td>Payroll-style disbursement to many recipients in one transaction</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA04</td><td>Query Token Balance</td><td class="op-maps">V2 <code>query</code></td>
+            <td>Pre-transaction balance validation, portfolio/status checks</td>
+            <td><span class="badge badge--mvp">MVP</span> <span class="op-star" title="Flagged as likely high-frequency">&#9733;</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA05</td><td>Create Custom Token (issuer)</td><td class="op-maps"><code>TxBody.CreateToken()</code></td>
+            <td>Stand up a new token type — needed for token-issuance use cases, not everyday payments</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA06</td><td>Issue Tokens</td><td class="op-maps"><code>TxBody.IssueTokens()</code></td>
+            <td>Mint additional supply under an existing custom token issuer</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA07</td><td>Burn Tokens</td><td class="op-maps"><code>TxBody.BurnTokens()</code></td>
+            <td>Reduce token supply — same use-case tier as TA05/TA06</td>
+            <td><span class="badge badge--phase2">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td class="op-code">TA08</td><td>Get Token Account Transaction History</td><td class="op-maps">V2 <code>query-tx-history</code> scoped to the token account's <code>acc://</code> URL</td>
+            <td>List transactions against this specific token account — payment history, reconciliation</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 8v12M8 12l4-4 4 4"/><path d="M4 4h16"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Every write op here waits on the 3-second confirmation policy</div>
+        <p>
+          Per the owner's 2026-07-02 decision (design proposal &sect;4.7), TA01&ndash;TA07 all submit
+          through <code>SmartSigner</code> and wait 3 seconds after submit. If confirmed within that
+          window, the operation returns a normal synchronous success. If not, it returns a
+          pending/not-yet-confirmed status and the workflow follows up via <code>QX01</code>/<code>QX03</code>
+          or <code>TRIG01</code> — see the <a href="resource-smart-signer.html">SmartSigner</a> page for
+          the full mechanics of this boundary.
+        </p>
+      </div>
+    </div>
+
+    <h2>How it works — a single payment, submit to settlement</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">TA02 — Send Tokens (single recipient)</div>
+      <pre class="mermaid">
+sequenceDiagram
+  participant WF as Workflow
+  participant TA as TokenAccountService
+  participant SF as SignerFactory
+  participant SDK as Acme.Net.Sdk (SmartSigner)
+  participant NET as Accumulate Network
+
+  WF->>TA: TA02 Send Tokens(recipient, amount)
+  TA->>SF: resolve credentialId -> keypair
+  SF->>SDK: new SmartSigner(client.V3, keypair, signerUrl)
+  TA->>SDK: TxBody.SendTokensSingle(recipient, amount)
+  SDK->>NET: SignSubmitAndWaitAsync(principal, body)
+  NET-->>SDK: transaction accepted by sender's authority
+  NET-->>NET: synthetic transaction credits recipient account
+  SDK-->>TA: delivered (within 3s) or pending
+  TA-->>WF: success, or pending + follow up via QX01/TRIG01
+      </pre>
+    </div>
+
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">TA03 — Batch send fan-out (payroll-style disbursement)</div>
+      <pre class="mermaid">
+flowchart LR
+  W["Workflow: run payroll"] --> C["CR02 Query Credit Balance<br/>fail fast if insufficient"]
+  C --> B["TA03 Send Tokens (batch)"]
+  B --> R1["Recipient 1<br/>acc://vendor-a.acme/tokens"]
+  B --> R2["Recipient 2<br/>acc://vendor-b.acme/tokens"]
+  B --> R3["Recipient N&hellip;"]
+  B --> H["TA08 Get Token Account<br/>Transaction History (reconciliation)"]
+      </pre>
+    </div>
+
+    <h2>Business use case — programmable payments and disbursements</h2>
+    <div class="callout callout--business">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 2 3 7v6c0 5 4 9 9 9s9-4 9-9V7l-9-5Z"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">From <code>001.BusinessIdeas/README.md</code> &sect;2.3</div>
+        <p>
+          Any workflow that currently ends in "...then someone manually sends a payment" is a candidate
+          — <strong>provided the payment is denominated in ACME or an Accumulate-native token</strong>.
+          TA01 sets up a payout account, TA02 handles one-off vendor payouts or refunds, TA03 batches
+          payroll-style disbursement to many recipients in one transaction, TA04 checks balance before
+          disbursing to fail fast rather than attempt an under-funded payment, and TA08 pulls history for
+          reconciliation.
+        </p>
+        <p>
+          The realistic audience is narrower than the Data Account or Key Management use cases: it only
+          matters to a workflow that already has, or wants, Accumulate-denominated asset exposure — not a
+          general fiat-payment replacement.
+        </p>
+      </div>
+    </div>
+
+    <h2>Open questions affecting this resource</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; V2 vs. V3 targeting</div>
+        <p>
+          TA04/TA08's V2 method names were verified against protocol source; whether the node ultimately
+          targets V2, V3, or lets the SDK's unified client decide per call is still open — confirm against
+          <code>docs.accumulatenetwork.io</code> at implementation time.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "resource-token-account.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

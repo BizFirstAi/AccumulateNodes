@@ -1,10 +1,11 @@
 # Social Media Invitation — Accumulate Nodes
 
 Copy for inviting the open-source community to participate. Pick the variant that fits the
-platform; all point back to the same two destinations:
+platform; all point back to the same destinations:
 
+- **Live docs/design site:** `https://bizfirstai.github.io/AccumulateNodes/`
 - **Repo:** `https://github.com/BizFirstAi/AccumulateNodes`
-- **Discussion:** `https://github.com/BizFirstAi/AccumulateNodes/discussions`
+- **Discussion (ask questions here, not in comments):** `https://github.com/BizFirstAi/AccumulateNodes/discussions`
 
 ---
 
@@ -112,8 +113,12 @@ specification anyone can read and weigh in on. If you're comfortable with C#/.NE
 curious about blockchain integration (no prior blockchain experience required — our
 reference docs start from zero), we'd love your input or your code.
 
-Start here: https://github.com/BizFirstAi/AccumulateNodes
-Join the conversation: https://github.com/BizFirstAi/AccumulateNodes/discussions
+Got questions? Ask them in the discussion forum — that's genuinely where we want them,
+not in the comments here.
+
+📄 Docs & design: https://bizfirstai.github.io/AccumulateNodes/
+💻 Repo: https://github.com/BizFirstAi/AccumulateNodes
+💬 Questions & discussion: https://github.com/BizFirstAi/AccumulateNodes/discussions
 ```
 
 ---
@@ -151,6 +156,7 @@ integration? You don't need prior blockchain experience — the reference docs i
 repo are written to take a .NET developer from zero to productive, covering what makes
 Accumulate's identity-based model different from typical chains before you touch any code.
 
+Docs & design site: https://bizfirstai.github.io/AccumulateNodes/
 Repo: https://github.com/BizFirstAi/AccumulateNodes
 Discussions (start here, ask anything): https://github.com/BizFirstAi/AccumulateNodes/discussions
 ```

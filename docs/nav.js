@@ -62,6 +62,8 @@
   ];
 
   var DISCUSSIONS_URL = "https://github.com/BizFirstAi/AccumulateNodes/discussions";
+  var GITHUB_REPO_URL = "https://github.com/BizFirstAi/AccumulateNodes";
+  var SITE_URL = "https://bizfirstai.github.io/AccumulateNodes/";
 
   function buildHeader() {
     var el = document.getElementById("site-header");
@@ -81,8 +83,11 @@
         "</div>" +
         '<div class="header-actions">' +
           '<span class="status-pill"><span class="status-pill__dot"></span>Design phase — draft</span>' +
-          '<a class="btn" href="' + DISCUSSIONS_URL + '" target="_blank" rel="noopener">' +
-            ICONS.github + "<span>Discussions</span>" +
+          '<a class="btn" href="' + GITHUB_REPO_URL + '" target="_blank" rel="noopener">' +
+            ICONS.github + "<span>Repo</span>" +
+          "</a>" +
+          '<a class="btn btn--primary" href="' + DISCUSSIONS_URL + '" target="_blank" rel="noopener">' +
+            ICONS.github + "<span>Ask a question</span>" +
           "</a>" +
         "</div>" +
       "</div>";
@@ -139,7 +144,9 @@
           "SDK by <a href=\"https://www.nuget.org/profiles/jason_gregoire\" target=\"_blank\" rel=\"noopener\">jason_gregoire</a>.</div>" +
         '<div class="site-footer__links">' +
           '<a href="index.html">Home</a>' +
+          '<a href="' + GITHUB_REPO_URL + '" target="_blank" rel="noopener">GitHub Repo</a>' +
           '<a href="' + DISCUSSIONS_URL + '" target="_blank" rel="noopener">GitHub Discussions</a>' +
+          '<a href="' + SITE_URL + '" target="_blank" rel="noopener">Live Site</a>' +
           '<a href="https://www.nuget.org/packages/Acme.Net.Sdk" target="_blank" rel="noopener">Acme.Net.Sdk</a>' +
           '<a href="https://accumulate.org" target="_blank" rel="noopener">Accumulate Protocol</a>' +
         "</div>" +

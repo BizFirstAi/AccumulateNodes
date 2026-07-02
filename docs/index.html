@@ -46,8 +46,8 @@
 
         <div class="stats-row">
           <div class="stat-cell"><div class="stat-cell__num">9</div><div class="stat-cell__label">Resources &amp; triggers</div></div>
-          <div class="stat-cell"><div class="stat-cell__num">45</div><div class="stat-cell__label">Total operations</div></div>
-          <div class="stat-cell"><div class="stat-cell__num">31</div><div class="stat-cell__label">MVP candidates</div></div>
+          <div class="stat-cell"><div class="stat-cell__num">46</div><div class="stat-cell__label">Total operations</div></div>
+          <div class="stat-cell"><div class="stat-cell__num">32</div><div class="stat-cell__label">MVP candidates</div></div>
           <div class="stat-cell"><div class="stat-cell__num">14</div><div class="stat-cell__label">Phase 2+ operations</div></div>
         </div>
       </div>
@@ -123,7 +123,7 @@
         <div class="diagram-frame">
           <div class="diagram-frame__label">Request path — workflow to protocol</div>
           <pre class="mermaid">
-flowchart LR
+flowchart TB
   A["Workflow Author<br/>drags a node onto the canvas"] --> B["AccumulateNodeExecutor<br/>(routing, credential resolution)"]
   B --> C["ICredentialResolver<br/>credentialId to keypair"]
   B --> D["Resource Service<br/>Identity / TokenAccount / DataAccount / KeyManagement / SmartSigner / Credits / QueryExplorer"]
@@ -141,7 +141,7 @@ flowchart LR
       <div class="section__inner">
         <div class="section__head">
           <div class="section__kicker">The node design</div>
-          <h2>9 resources, 45 operations — sourced from the design proposal</h2>
+          <h2>9 resources, 46 operations — sourced from the design proposal</h2>
           <p class="page-lede">
             Each card below is one dedicated page covering that resource's protocol concepts, its full
             operation table (code, SDK mapping, priority), at least one Mermaid diagram of its mechanics,
@@ -185,7 +185,7 @@ flowchart LR
             <div class="res-card__icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5c3-.4 3-3.4 0-3.6M4 19.5 15.5 8a1.8 1.8 0 0 0 0-2.6l-.9-.9a1.8 1.8 0 0 0-2.6 0L4 12.9v6.6Z"/><path d="M11.2 5.7 16.3 10.8"/></svg></div>
             <div class="res-card__title">SmartSigner</div>
             <div class="res-card__desc">Ed25519 key generation, signer-version lookups, and the sign&rarr;submit&rarr;wait flow every write operation goes through.</div>
-            <div class="res-card__meta"><span><strong>4</strong> operations</span><span class="res-card__link">View <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+            <div class="res-card__meta"><span><strong>5</strong> operations</span><span class="res-card__link">View <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
           </a>
 
           <a class="res-card" href="resource-credits.html" style="text-decoration:none;">
@@ -216,6 +216,21 @@ flowchart LR
             <div class="res-card__meta"><span><strong>1</strong> operation</span><span class="res-card__link">View <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
           </a>
 
+        </div>
+
+        <div class="callout callout--info" style="margin-top:2rem;">
+          <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M4 19.5c3-.4 3-3.4 0-3.6M4 19.5 15.5 8a1.8 1.8 0 0 0 0-2.6l-.9-.9a1.8 1.8 0 0 0-2.6 0L4 12.9v6.6Z"/><path d="M11.2 5.7 16.3 10.8"/></svg>
+          <div class="callout__body">
+            <div class="callout__title">Design Notes — cross-cutting decisions that don't belong to one resource</div>
+            <p>
+              Some design decisions cut across multiple resources rather than living inside one operation
+              table. <a href="design-note-signing-pathways.html">Signing Pathways</a> is the first one:
+              how a write operation actually gets signed — auto-sign, HIL approval with a vault-or-agent
+              credential, or HIL approval where the approver's reply already carries its own signature
+              (which flows straight into SS05 on the <a href="resource-smart-signer.html">SmartSigner</a>
+              page). Find it in the sidebar under "Design Notes."
+            </p>
+          </div>
         </div>
       </div>
     </section>

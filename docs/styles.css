@@ -512,6 +512,9 @@ table.op-table td.op-star { color: var(--color-warning); }
   padding: 1.5rem;
   margin: 1.5rem 0 2rem;
   overflow-x: auto;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
 }
 .diagram-frame__label {
   font-size: 0.72rem;
@@ -521,7 +524,18 @@ table.op-table td.op-star { color: var(--color-warning); }
   font-weight: 700;
   margin-bottom: 0.9rem;
 }
-.mermaid { display: flex; justify-content: center; }
+/* useMaxWidth:false in mermaid-init.js renders diagrams at native size —
+   min-height above gives short-but-wide flowcharts (e.g. LR direction)
+   room to breathe instead of collapsing to their tight intrinsic height;
+   overflow-x above handles the resulting horizontal scroll on wide ones. */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  min-height: 280px;
+}
+.mermaid svg { min-height: 280px; }
 
 /* Animated dashed edges — Mermaid renders flowchart / sequence
    diagram connectors as SVG <path>/<line> elements with these

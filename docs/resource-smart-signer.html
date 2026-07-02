@@ -33,8 +33,8 @@
     </p>
 
     <div class="decision-strip">
-      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>4 operations</span>
-      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 MVP candidates</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>5 operations</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>4 MVP candidates</span>
       <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>1 Phase 2+ (SS03)</span>
     </div>
 
@@ -82,9 +82,40 @@
             <td>Adds this signer's Ed25519 signature to an already-pending multi-sig transaction. <strong>Decided 2026-07-02:</strong> this is the ONLY multi-sig operation the node needs</td>
             <td><span class="badge badge--mvp">MVP</span></td>
           </tr>
+          <tr>
+            <td class="op-code">SS05</td><td>Submit Pre-Signed Transaction (Bring Your Own Signature)</td><td class="op-maps">V2/V3 <code>execute</code> / <code>execute-direct</code> (submits an already-signed envelope as-is — no <code>TxBody</code> construction, no <code>SmartSigner</code> signing)</td>
+            <td><strong>Added 2026-07-02 (owner):</strong> lets an external signer (their own wallet, their own key custody, outside this node entirely) sign a transaction independently and hand the node the finished, already-signed envelope. The node's job is purely to submit it and <strong>recognize/parse the transaction's parameters</strong> so the workflow can branch and continue based on what was actually submitted — not to hold or use any key at all</td>
+            <td><span class="badge badge--mvp">MVP</span></td>
+          </tr>
         </tbody>
       </table>
     </div>
+
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Non-custodial submission (SS05) — the deliberate exception</div>
+        <p>
+          Every other write operation in this document (ID01&ndash;ID02, TA01&ndash;TA07,
+          DA01&ndash;DA03, KM01&ndash;KM07, CR01, SS03, SS04) is <strong>custodial</strong> — the node
+          resolves a credential from BizFirst's vault and signs on the caller's behalf, per the
+          platform's mandatory Credential Pattern. SS05 is the deliberate exception: the private key
+          never touches this node or the credential vault at all. The signer does their own signing
+          entirely outside BizFirst and only ever hands the node a finished, already-signed
+          transaction. This also answers/subsumes the "raw <code>execute</code> escape hatch" open
+          question below — <code>execute</code>/<code>execute-direct</code> is exactly the mechanism
+          SS05 needs, since those methods take a pre-built signed envelope and just relay it, doing no
+          signing of their own.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      See the dedicated <a href="design-note-signing-pathways.html">Signing Pathways design note</a>
+      for how HIL approval and credential choice interact with SS04 and SS05 — auto-sign, HIL approval
+      with a vault-resolved credential, or HIL approval where the approver's reply already carries its
+      own signature and flows straight into SS05.
+    </p>
 
     <h2>How it works — sign, submit, wait 3 seconds</h2>
     <p>
@@ -192,13 +223,29 @@ flowchart TD
     <h2>Open questions affecting this resource</h2>
     <ul class="oq-list">
       <li class="oq-item">
-        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; Raw "execute" escape hatch</div>
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Largely resolved by SS05, but not struck through in &sect;5 &middot; Raw "execute" escape hatch</div>
         <p>
           The V2 surface includes generic <code>execute</code> / <code>execute-direct</code> /
-          <code>execute-local</code> methods alongside named per-type methods. Should the node expose a
-          generic "raw transaction" operation as an escape hatch for transaction types not covered by a
-          named <code>TxBody</code> builder — and does that overlap with SS03, which still requires a
-          <code>TxBody</code> and so is one level less raw than V2's <code>execute</code> methods?
+          <code>execute-local</code> methods alongside named per-type methods. The SS05 design note
+          states this "answers/subsumes" the raw-execute question, since <code>execute</code>/<code>execute-direct</code>
+          is exactly the mechanism SS05 needs. The design proposal's own &sect;5 open-questions list
+          has not yet been edited to strike this bullet, so it's presented here as effectively answered
+          in practice, with the source document's own bookkeeping still catching up.
+        </p>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; Does the SDK support decoding a pre-signed envelope back into structured parameters?</div>
+        <p>
+          SS05's "recognize/parse the transaction's parameters" requirement needs <strong>decoding</strong>
+          an arbitrary signed envelope back into a structured, typed result — the reverse of what
+          <code>TxBody</code>'s factory methods do (encoding). <code>AboutAcmeNetSdk.md</code> only
+          documents the SDK's encode-side <code>TxBody</code> factory; it does not confirm a
+          corresponding decoder. The SDK's GitHub README does list a <code>Codec/</code> namespace
+          ("binary TLV encoding") which may cover this, but that was not independently verified against
+          source. This needs confirmation before SS05 can be implemented — if the SDK can't decode an
+          arbitrary envelope, this node would need its own TLV parser, meaningfully more implementation
+          work than every other operation here (all of which only ever encode, never decode arbitrary
+          input).
         </p>
       </li>
       <li class="oq-item">

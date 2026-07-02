@@ -47,8 +47,8 @@ function ACC_MERMAID_INIT() {
       sequenceNumberColor: "#080F08",
       fontSize: "14px"
     },
-    flowchart: { curve: "basis", htmlLabels: true, padding: 12 },
-    sequence: { actorMargin: 60, messageMargin: 34, boxMargin: 10, mirrorActors: false }
+    flowchart: { curve: "basis", htmlLabels: true, padding: 12, useMaxWidth: false, nodeSpacing: 46, rankSpacing: 60 },
+    sequence: { actorMargin: 60, messageMargin: 34, boxMargin: 10, mirrorActors: false, useMaxWidth: false }
   });
 
   mermaid.run({ querySelector: ".mermaid" });

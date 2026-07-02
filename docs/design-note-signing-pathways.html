@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Design Note: Signing Pathways — AccumulateNodes</title>
+<meta name="description" content="How a write operation gets signed: auto-sign, HIL approval with a vault-or-agent credential, or HIL approval where the approver's reply already carries a signature." />
+<link rel="icon" type="image/png" href="https://bizfirstai.com/website/assets/Logo/logo-m.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="site-header"></div>
+
+<div class="shell">
+  <aside id="sidebar-nav" class="sidebar" aria-label="Resource navigation"></aside>
+
+  <main class="content" id="main">
+
+    <div class="page-kicker">
+      <span class="page-kicker__icon"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5c3-.4 3-3.4 0-3.6M4 19.5 15.5 8a1.8 1.8 0 0 0 0-2.6l-.9-.9a1.8 1.8 0 0 0-2.6 0L4 12.9v6.6Z"/><path d="M11.2 5.7 16.3 10.8"/></svg></span>
+      Design note &middot; part of &sect;2.5 SmartSigner in the design proposal &middot; added 2026-07-02 per owner decision
+    </div>
+    <h1>Design Note: Signing Pathways</h1>
+    <p class="page-lede">
+      Every write operation in this node needs to get signed somehow. This page lays out the three
+      ways that can happen. Scope note, straight from the source document: this describes the
+      <em>conceptual decision model only</em> — the exact HIL/<code>ApprovalNode</code> message schema,
+      how an "optionally attach a signature" field is carried on an approval reply, and how a workflow
+      decides whether a given transaction category needs HIL at all, are implementation details left to
+      the developer building this node, not specified here.
+    </p>
+
+    <div class="decision-strip">
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 pathways</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Applies to every write operation</span>
+      <span class="decision-chip"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Composes with SS04 multi-sig</span>
+    </div>
+
+    <h2>The decision, at a glance</h2>
+    <div class="diagram-frame">
+      <div class="diagram-frame__label">Which pathway a given write operation takes</div>
+      <pre class="mermaid">
+flowchart TD
+  START["A write operation needs to be signed<br/>e.g. TA02 Send Tokens, DA02 Write Data"] --> Q1{"Already gated by an<br/>automated check upstream?<br/>(AML check, KYC check)"}
+  Q1 -- "Yes &mdash; compliance already happened" --> P1["Pathway 1: Auto-sign<br/>Agent's shared credential signs immediately,<br/>no ApprovalNode / HIL step at all"]
+  Q1 -- "No" --> AN["ApprovalNode step gates the transaction"]
+  AN --> Q2{"Did the approver's reply already<br/>carry their own signature?"}
+  Q2 -- "Yes" --> P3["Pathway 3: Bring your own signature<br/>SS05 submits the envelope as-is &mdash;<br/>SmartSigner and the credential vault are never touched"]
+  Q2 -- "No, node must sign on their behalf" --> Q3{"Sign with the approving user's<br/>own vault credential, or the Agent's?"}
+  Q3 -- "User's personal Ed25519 credential" --> P2a["Pathway 2a: node signs<br/>as that specific human"]
+  Q3 -- "Agent's shared credential" --> P2b["Pathway 2b: node signs<br/>as the workflow/tenant, human approved the action"]
+      </pre>
+    </div>
+
+    <h2>Pathway 1 &mdash; Auto-sign, no human approval</h2>
+    <p>
+      For transaction categories already gated by an automated check upstream in the workflow &mdash;
+      the owner's own examples are an <strong>AML check</strong> or a <strong>KYC check</strong> &mdash;
+      compliance already happened, just not via a human clicking "approve." The workflow skips
+      <code>ApprovalNode</code>/HIL entirely and the node signs immediately using the
+      <strong>Agent's</strong> credential (the workflow/tenant's own shared, non-personal credential).
+      This is the same custodial signing every other operation in the
+      <a href="resource-smart-signer.html">SmartSigner</a> resource already uses &mdash; resolved via
+      <code>SignerFactory</code>/<code>ICredentialResolver</code> per the mandatory Credential Pattern
+      &mdash; the only thing that varies is that no human was in the loop for this specific transaction.
+    </p>
+
+    <h2>Pathway 2 &mdash; HIL approval, no signature attached</h2>
+    <p>
+      An <code>ApprovalNode</code> step gates the transaction; the approving user clicks "approve" but
+      does not supply their own signature in the reply. The node must still sign on someone's behalf
+      &mdash; and there are two credential options here, both custodial, chosen per user/workflow
+      configuration rather than hardcoded:
+    </p>
+    <ul>
+      <li><strong>The approving user's own key</strong> &mdash; if that specific user has their own
+        personal Ed25519 credential registered in BizFirst's credential vault, the system signs
+        <em>as that individual human</em>, using a key that belongs to them personally.</li>
+      <li><strong>The Agent's credentials</strong>, used optionally instead &mdash; the human approves
+        the <em>action</em>, but the actual cryptographic signature comes from the workflow/tenant's
+        shared signing key, not a key personally owned by the approver.</li>
+    </ul>
+
+    <h2>Pathway 3 &mdash; HIL approval, signature already attached</h2>
+    <p>
+      The approving user's reply already carries a signature they produced themselves, entirely outside
+      this node &mdash; their own wallet, their own key custody. In this case <strong>no further signing
+      is needed at all</strong>: the system recognizes a signature is already present and the transaction
+      flows straight into <a href="resource-smart-signer.html">SS05 (Submit Pre-Signed Transaction)</a>
+      &mdash; submit as-is and recognize the transaction's parameters &mdash; never touching
+      <code>SmartSigner</code>, <code>SignerFactory</code>, or the credential vault for this transaction.
+    </p>
+
+    <div class="callout callout--info">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M12 8h.01M11 12h1v4h1"/><circle cx="12" cy="12" r="9"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">A per-transaction runtime decision, not a fixed property of an operation</div>
+        <p>
+          The same <code>TA02 Send Tokens</code>, for example, could go through any of the three
+          pathways above depending on whether HIL is configured for it and whether the approver brought
+          their own signature. <a href="resource-smart-signer.html">SS04</a> (multi-sig co-sign) composes
+          with this too: each of the N required approvers independently goes through Pathway 2 or
+          Pathway 3 for <em>their own</em> signature contribution &mdash; a workflow doesn't have to use
+          the same pathway for every co-signer.
+        </p>
+      </div>
+    </div>
+
+    <h2>Why this is scoped the way it is</h2>
+    <div class="callout callout--decided">
+      <svg class="icon callout__icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+      <div class="callout__body">
+        <div class="callout__title">Decided 2026-07-02 &mdash; describe the model, defer the wiring</div>
+        <p>
+          The owner's instruction, per the design proposal: describe how a user signs, but leave the
+          actual HIL/<code>ApprovalNode</code> integration mechanics to the developer building this
+          node. This page exists to make that decision model explicit and reviewable, without
+          over-specifying a wire format or message schema that hasn't been designed yet.
+        </p>
+      </div>
+    </div>
+
+    <h2>Related</h2>
+    <ul class="oq-list">
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><a href="resource-smart-signer.html">SmartSigner resource</a> &middot; SS01&ndash;SS05, including SS05 (bring your own signature) and SS04 (multi-sig co-sign)</div>
+      </li>
+      <li class="oq-item">
+        <div class="oq-item__label"><svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Open &middot; does the SDK support decoding an arbitrary signed envelope back into structured parameters?</div>
+        <p>
+          Pathway 3 depends on SS05's "recognize the transaction parameters" capability, which needs the
+          reverse of what <code>TxBody</code>'s factory methods do (encoding). See the
+          <a href="resource-smart-signer.html">SmartSigner</a> page for the full open question on the
+          SDK's <code>Codec/</code> namespace.
+        </p>
+      </li>
+    </ul>
+
+  </main>
+</div>
+
+<div id="site-footer" class="site-footer"></div>
+
+<script>window.CURRENT_PAGE = "design-note-signing-pathways.html";</script>
+<script src="nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="mermaid-init.js"></script>
+</body>
+</html>

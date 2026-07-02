@@ -37,6 +37,8 @@
       '<svg class="icon" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.4c0-1 .3-1.6.7-2-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.4-2.3 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11 11 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.9 1.2 2 1.2 3.2 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2V21"/></svg>',
     externalLink:
       '<svg class="icon" viewBox="0 0 24 24"><path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/><path d="M14 4h6v6M20 4 11 13"/></svg>',
+    designNote:
+      '<svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5c3-.4 3-3.4 0-3.6M4 19.5 15.5 8a1.8 1.8 0 0 0 0-2.6l-.9-.9a1.8 1.8 0 0 0-2.6 0L4 12.9v6.6Z"/><path d="M11.2 5.7 16.3 10.8"/></svg>',
     menu:
       '<svg class="icon" viewBox="0 0 24 24"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg>',
     close:
@@ -53,6 +55,10 @@
     { slug: "resource-query-explorer.html", icon: "queryExplorer", label: "Query / Explorer", code: "QX" },
     { slug: "resource-utility.html", icon: "utility", label: "Utility (testnet)", code: "UT" },
     { slug: "resource-triggers.html", icon: "triggers", label: "Triggers", code: "TRIG" }
+  ];
+
+  var DESIGN_NOTES = [
+    { slug: "design-note-signing-pathways.html", icon: "designNote", label: "Signing Pathways" }
   ];
 
   var DISCUSSIONS_URL = "https://github.com/BizFirstAi/AccumulateNodes/discussions";
@@ -106,6 +112,14 @@
       html += '<li><a class="sidebar__link' + active + '" href="' + r.slug + '">' +
         ICONS[r.icon] + "<span>" + r.label + "</span>" +
         '<span class="sidebar__code">' + r.code + "</span></a></li>";
+    });
+    html += "</ul>";
+
+    html += '<div class="sidebar__group-label">Design Notes</div><ul class="sidebar__nav">';
+    DESIGN_NOTES.forEach(function (d) {
+      var active = current === d.slug ? " is-active" : "";
+      html += '<li><a class="sidebar__link' + active + '" href="' + d.slug + '">' +
+        ICONS[d.icon] + "<span>" + d.label + "</span></a></li>";
     });
     html += "</ul>";
 

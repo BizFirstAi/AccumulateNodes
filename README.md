@@ -1,5 +1,9 @@
 # Accumulate Nodes
 
+# About the project
+https://bizfirstai.github.io/AccumulateNodes/
+
+
 Welcome! This is a **community-driven project** to bring the [Accumulate](https://accumulate.org)
 blockchain protocol into [BizFirst](https://www.bizfirstai.com)'s node-based workflow engine, as a
 new set of pluggable **ExecutionNodes**.

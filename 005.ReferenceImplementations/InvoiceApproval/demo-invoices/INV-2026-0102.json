@@ -1,0 +1,12 @@
+{
+  "invoice_id": "INV-2026-0102",
+  "vendor": "Northwind Marketing Group",
+  "vendor_id": "V-2087",
+  "amount_usd": 120000,
+  "currency": "USD",
+  "description": "Q4 brand campaign — creative + paid media retainer",
+  "submitted_by": "marketing@debary.example",
+  "date": "2026-07-18",
+  "expected_tier": "T3",
+  "expected_rule": "2-of-3 (Director, Finance Lead, Controller)"
+}

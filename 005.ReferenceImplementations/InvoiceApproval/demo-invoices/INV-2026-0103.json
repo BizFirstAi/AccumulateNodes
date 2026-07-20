@@ -1,0 +1,12 @@
+{
+  "invoice_id": "INV-2026-0103",
+  "vendor": "Vertex Data Systems",
+  "vendor_id": "V-3301",
+  "amount_usd": 750000,
+  "currency": "USD",
+  "description": "Data-center hardware refresh — compute + storage nodes",
+  "submitted_by": "it@debary.example",
+  "date": "2026-07-18",
+  "expected_tier": "T4",
+  "expected_rule": "3-of-3 (Director, Controller, CFO)"
+}

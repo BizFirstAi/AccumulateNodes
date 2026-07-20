@@ -1,0 +1,96 @@
+{
+  "note": "Fixtures for the invoice-approval anchor. Reproduce sha256 via the canonicalization in CANONICALIZATION.md to confirm interoperability.",
+  "algorithm": "sha256(utf8(canonicalize(decision)))",
+  "vectors": [
+    {
+      "invoice_id": "INV-2026-0101",
+      "decision": {
+        "use_case": "invoice-approval",
+        "invoice_id": "INV-2026-0101",
+        "vendor": "Contoso Office Supplies",
+        "vendor_id": "V-1042",
+        "amount_usd": 4200,
+        "tier": "T1",
+        "rule_version": "approval-matrix-v1",
+        "rule": "1-of-1 (Manager)",
+        "decision": "approved",
+        "approvers": [
+          {
+            "actor": "manager@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:00:05Z"
+          }
+        ],
+        "submitted_by": "ops@debary.example",
+        "timestamp": "2026-07-18T12:00:10Z"
+      },
+      "canonical": "{\"amount_usd\":4200,\"approvers\":[{\"actor\":\"manager@debary.example\",\"at\":\"2026-07-18T12:00:05Z\",\"decision\":\"approved\"}],\"decision\":\"approved\",\"invoice_id\":\"INV-2026-0101\",\"rule\":\"1-of-1 (Manager)\",\"rule_version\":\"approval-matrix-v1\",\"submitted_by\":\"ops@debary.example\",\"tier\":\"T1\",\"timestamp\":\"2026-07-18T12:00:10Z\",\"use_case\":\"invoice-approval\",\"vendor\":\"Contoso Office Supplies\",\"vendor_id\":\"V-1042\"}",
+      "sha256": "5c96d7e3f6857cd707cd7ed59662ff8dd74c6f7049ac1142c12eaeeb50b9de3b"
+    },
+    {
+      "invoice_id": "INV-2026-0102",
+      "decision": {
+        "use_case": "invoice-approval",
+        "invoice_id": "INV-2026-0102",
+        "vendor": "Northwind Marketing Group",
+        "vendor_id": "V-2087",
+        "amount_usd": 120000,
+        "tier": "T3",
+        "rule_version": "approval-matrix-v1",
+        "rule": "2-of-3 (Director, Finance Lead, Controller)",
+        "decision": "approved",
+        "approvers": [
+          {
+            "actor": "director@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:01:00Z"
+          },
+          {
+            "actor": "finance@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:03:00Z"
+          }
+        ],
+        "submitted_by": "marketing@debary.example",
+        "timestamp": "2026-07-18T12:03:05Z"
+      },
+      "canonical": "{\"amount_usd\":120000,\"approvers\":[{\"actor\":\"director@debary.example\",\"at\":\"2026-07-18T12:01:00Z\",\"decision\":\"approved\"},{\"actor\":\"finance@debary.example\",\"at\":\"2026-07-18T12:03:00Z\",\"decision\":\"approved\"}],\"decision\":\"approved\",\"invoice_id\":\"INV-2026-0102\",\"rule\":\"2-of-3 (Director, Finance Lead, Controller)\",\"rule_version\":\"approval-matrix-v1\",\"submitted_by\":\"marketing@debary.example\",\"tier\":\"T3\",\"timestamp\":\"2026-07-18T12:03:05Z\",\"use_case\":\"invoice-approval\",\"vendor\":\"Northwind Marketing Group\",\"vendor_id\":\"V-2087\"}",
+      "sha256": "b322cf1e4c9183447b76b9ed5c87dc017de6d53cc37cceeda804d0ea9633d1ec"
+    },
+    {
+      "invoice_id": "INV-2026-0103",
+      "decision": {
+        "use_case": "invoice-approval",
+        "invoice_id": "INV-2026-0103",
+        "vendor": "Vertex Data Systems",
+        "vendor_id": "V-3301",
+        "amount_usd": 750000,
+        "tier": "T4",
+        "rule_version": "approval-matrix-v1",
+        "rule": "3-of-3 (Director, Controller, CFO)",
+        "decision": "approved",
+        "approvers": [
+          {
+            "actor": "director@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:05:00Z"
+          },
+          {
+            "actor": "controller@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:07:00Z"
+          },
+          {
+            "actor": "cfo@debary.example",
+            "decision": "approved",
+            "at": "2026-07-18T12:09:00Z"
+          }
+        ],
+        "submitted_by": "it@debary.example",
+        "timestamp": "2026-07-18T12:09:10Z"
+      },
+      "canonical": "{\"amount_usd\":750000,\"approvers\":[{\"actor\":\"director@debary.example\",\"at\":\"2026-07-18T12:05:00Z\",\"decision\":\"approved\"},{\"actor\":\"controller@debary.example\",\"at\":\"2026-07-18T12:07:00Z\",\"decision\":\"approved\"},{\"actor\":\"cfo@debary.example\",\"at\":\"2026-07-18T12:09:00Z\",\"decision\":\"approved\"}],\"decision\":\"approved\",\"invoice_id\":\"INV-2026-0103\",\"rule\":\"3-of-3 (Director, Controller, CFO)\",\"rule_version\":\"approval-matrix-v1\",\"submitted_by\":\"it@debary.example\",\"tier\":\"T4\",\"timestamp\":\"2026-07-18T12:09:10Z\",\"use_case\":\"invoice-approval\",\"vendor\":\"Vertex Data Systems\",\"vendor_id\":\"V-3301\"}",
+      "sha256": "ce768dd99a4bac850e5ef0cef58c0bfc71b43c7baa6f9487edb84ffef74fba2e"
+    }
+  ]
+}

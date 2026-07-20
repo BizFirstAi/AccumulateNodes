@@ -1,0 +1,12 @@
+{
+  "invoice_id": "INV-2026-0101",
+  "vendor": "Contoso Office Supplies",
+  "vendor_id": "V-1042",
+  "amount_usd": 4200,
+  "currency": "USD",
+  "description": "Q3 office supplies restock (paper, toner, misc.)",
+  "submitted_by": "ops@debary.example",
+  "date": "2026-07-18",
+  "expected_tier": "T1",
+  "expected_rule": "1-of-1 (Manager)"
+}

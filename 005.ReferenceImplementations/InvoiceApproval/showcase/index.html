@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Invoice Approval — verifiable on Accumulate</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2a323d;
+    --ink:#e6edf3; --muted:#9aa7b4; --accent:#3fb950; --accent2:#58a6ff; --warn:#d29922;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 64px}
+  header .kicker{color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:12px}
+  h1{margin:.2em 0 .1em;font-size:28px;line-height:1.2}
+  .sub{color:var(--muted);margin:0 0 8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:18px 0}
+  h2{font-size:18px;margin:0 0 6px}
+  h3{font-size:14px;margin:18px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .tier{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--panel2);border:1px solid var(--line)}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .hash{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);word-break:break-all}
+  textarea{width:100%;min-height:180px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px;font-family:ui-monospace,monospace;font-size:12.5px;resize:vertical}
+  button{background:var(--accent2);color:#0b1220;border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:14px}
+  button:hover{filter:brightness(1.08)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px}
+  .result{margin-top:14px;padding:14px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);display:none}
+  .ok{border-color:var(--accent)} .no{border-color:var(--warn)}
+  .badge{font-weight:700} .badge.ok{color:var(--accent)} .badge.no{color:var(--warn)}
+  .muted{color:var(--muted)} .small{font-size:12.5px}
+  footer{color:var(--muted);font-size:12.5px;margin-top:28px;border-top:1px solid var(--line);padding-top:16px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px}
+  .step b{display:block;color:var(--accent2);font-size:12px;margin-bottom:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Accumulate Agents · DE BARY LLC</div>
+    <h1>High-Dollar Invoice Approval — verifiable on-chain</h1>
+    <p class="sub">A BizFirst workflow routes an invoice through a governance-based approval matrix, then anchors the
+      decision on the Accumulate mainnet as a tamper-evident record. Anyone can verify it — no trust required.</p>
+  </header>
+
+  <div class="card">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step"><b>1 · Intake</b>Invoice submitted (vendor, amount).</div>
+      <div class="step"><b>2 · Classify</b>AI picks the approval tier by amount.</div>
+      <div class="step"><b>3 · Approve</b>ApprovalNode routes N-of-M sign-off.</div>
+      <div class="step"><b>4 · Anchor</b>Decision hashed &amp; written to Accumulate.</div>
+      <div class="step"><b>5 · Verify</b>Anyone recomputes the hash &amp; checks the chain.</div>
+    </div>
+    <p class="small muted" style="margin-top:12px">Data account (live):
+      <a id="daLink" href="https://explorer.accumulatenetwork.io/acc/marcdebary.acme/receipts" target="_blank" rel="noopener">
+        acc://marcdebary.acme/receipts</a></p>
+  </div>
+
+  <div class="card">
+    <h2>Demo approvals — three tiers</h2>
+    <table>
+      <thead><tr><th>Invoice</th><th>Amount</th><th>Tier · rule</th><th>Decision receipt (SHA-256)</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="small muted" style="margin-top:10px">Each receipt is the SHA-256 of the canonical decision JSON, written on-chain as a DoubleHash entry.</p>
+  </div>
+
+  <div class="card">
+    <h2>Verify it yourself</h2>
+    <p class="small muted">Pick a demo decision (or paste your own), then compute the hash in your browser. This is exactly what the anchor writes — recompute it and you have proof the decision is authentic and unaltered.</p>
+    <div class="row">
+      <select id="picker"></select>
+      <button id="verifyBtn">Compute &amp; verify hash</button>
+    </div>
+    <textarea id="input" spellcheck="false"></textarea>
+    <div id="result" class="result"></div>
+  </div>
+
+  <footer>
+    Canonicalization: object keys sorted recursively, arrays kept in order, then SHA-256 of the UTF-8 bytes.
+    Reference implementation and test vectors: <span class="mono">005.ReferenceImplementations/InvoiceApproval</span>.
+    Interim JavaScript anchor; the native Accumulate C# node is in progress. · DE BARY LLC.
+  </footer>
+</div>
+
+<script>
+// ---- exact decisions (match test-vectors/vectors.json) ----
+const DECISIONS = [
+  {use_case:"invoice-approval",invoice_id:"INV-2026-0101",vendor:"Contoso Office Supplies",vendor_id:"V-1042",amount_usd:4200,tier:"T1",rule_version:"approval-matrix-v1",rule:"1-of-1 (Manager)",decision:"approved",approvers:[{actor:"manager@debary.example",decision:"approved",at:"2026-07-18T12:00:05Z"}],submitted_by:"ops@debary.example",timestamp:"2026-07-18T12:00:10Z"},
+  {use_case:"invoice-approval",invoice_id:"INV-2026-0102",vendor:"Northwind Marketing Group",vendor_id:"V-2087",amount_usd:120000,tier:"T3",rule_version:"approval-matrix-v1",rule:"2-of-3 (Director, Finance Lead, Controller)",decision:"approved",approvers:[{actor:"director@debary.example",decision:"approved",at:"2026-07-18T12:01:00Z"},{actor:"finance@debary.example",decision:"approved",at:"2026-07-18T12:03:00Z"}],submitted_by:"marketing@debary.example",timestamp:"2026-07-18T12:03:05Z"},
+  {use_case:"invoice-approval",invoice_id:"INV-2026-0103",vendor:"Vertex Data Systems",vendor_id:"V-3301",amount_usd:750000,tier:"T4",rule_version:"approval-matrix-v1",rule:"3-of-3 (Director, Controller, CFO)",decision:"approved",approvers:[{actor:"director@debary.example",decision:"approved",at:"2026-07-18T12:05:00Z"},{actor:"controller@debary.example",decision:"approved",at:"2026-07-18T12:07:00Z"},{actor:"cfo@debary.example",decision:"approved",at:"2026-07-18T12:09:00Z"}],submitted_by:"it@debary.example",timestamp:"2026-07-18T12:09:10Z"}
+];
+// precomputed expected hashes (from the reference generator)
+const EXPECTED = {
+  "INV-2026-0101":"5c96d7e3f6857cd707cd7ed59662ff8dd74c6f7049ac1142c12eaeeb50b9de3b",
+  "INV-2026-0102":"b322cf1e4c9183447b76b9ed5c87dc017de6d53cc37cceeda804d0ea9633d1ec",
+  "INV-2026-0103":"ce768dd99a4bac850e5ef0cef58c0bfc71b43c7baa6f9487edb84ffef74fba2e"
+};
+
+// canonicalization — must match anchor_service.mjs exactly
+function canonicalize(v){
+  if(Array.isArray(v)) return '['+v.map(canonicalize).join(',')+']';
+  if(v && typeof v==='object') return '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonicalize(v[k])).join(',')+'}';
+  return JSON.stringify(v);
+}
+async function sha256hex(str){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function fmtUsd(n){return '$'+n.toLocaleString('en-US')}
+
+// render table
+const rows=document.getElementById('rows');
+DECISIONS.forEach(d=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><b>${d.invoice_id}</b><div class="small muted">${d.vendor}</div></td>
+    <td>${fmtUsd(d.amount_usd)}</td>
+    <td><span class="tier">${d.tier}</span><div class="small muted">${d.rule}</div></td>
+    <td class="hash">${EXPECTED[d.invoice_id]}</td>`;
+  rows.appendChild(tr);
+});
+
+// picker + verify
+const picker=document.getElementById('picker');
+DECISIONS.forEach((d,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${d.invoice_id} · ${d.tier} · ${fmtUsd(d.amount_usd)}`;picker.appendChild(o);});
+const input=document.getElementById('input');
+function load(i){input.value=JSON.stringify(DECISIONS[i],null,2);}
+picker.addEventListener('change',e=>load(+e.target.value));
+load(0);
+
+document.getElementById('verifyBtn').addEventListener('click',async()=>{
+  const box=document.getElementById('result');
+  box.style.display='block';
+  let obj;
+  try{obj=JSON.parse(input.value);}catch(e){box.className='result no';box.innerHTML='<span class="badge no">Invalid JSON</span> — check the payload.';return;}
+  const canon=canonicalize(obj);
+  const hash=await sha256hex(canon);
+  const expected=EXPECTED[obj.invoice_id];
+  const match=expected && expected===hash;
+  box.className='result '+(match?'ok':'no');
+  box.innerHTML=
+    `<div><span class="badge ${match?'ok':'no'}">${match?'✓ Verified':'Computed'}</span> — SHA-256 of the canonical decision:</div>
+     <div class="hash" style="margin:6px 0">${hash}</div>`+
+    (expected?`<div class="small muted">Expected on-chain receipt for ${obj.invoice_id}: <span class="hash">${expected}</span> ${match?'— match.':'— no match (payload was edited).'}</div>`:
+      `<div class="small muted">No known on-chain receipt for this invoice id — this is the hash that <em>would</em> be anchored.</div>`)+
+    `<div class="small" style="margin-top:8px"><a href="https://explorer.accumulatenetwork.io/acc/marcdebary.acme/receipts" target="_blank" rel="noopener">Open the data account on the Accumulate explorer →</a></div>
+     <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">Show canonical string</summary><div class="hash" style="margin-top:6px">${canon.replace(/</g,'&lt;')}</div></details>`;
+});
+</script>
+</body>
+</html>
